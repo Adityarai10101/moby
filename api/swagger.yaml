@@ -5166,6 +5166,31 @@ definitions:
         description: "The image ID of an image that was deleted"
         type: "string"
 
+  ImagePruneRequest:
+    type: "object"
+    description: |
+      Request body for the image prune operation.
+
+      This request format is available starting from API version 1.53.
+      For older API versions, use query parameters instead.
+    properties:
+      Filters:
+        description: |
+          Filters to process on the prune list.
+
+          Available filters:
+
+          - `dangling=<boolean>` When set to `true` (or `1`), prune only
+             unused *and* untagged images. When set to `false`
+             (or `0`), all unused images are pruned.
+          - `until=<string>` Prune images created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine's time.
+          - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune images with (or without, in case `label!=...` is used) the specified labels.
+        type: "object"
+        additionalProperties:
+          type: "object"
+          additionalProperties:
+            type: "boolean"
+
   ServiceCreateResponse:
     type: "object"
     description: |
@@ -10149,6 +10174,8 @@ paths:
   /images/prune:
     post:
       summary: "Delete unused images"
+      consumes:
+        - "application/json"
       produces:
         - "application/json"
       operationId: "ImagePrune"
@@ -10156,14 +10183,27 @@ paths:
         - name: "filters"
           in: "query"
           description: |
-            Filters to process on the prune list, encoded as JSON (a `map[string][]string`). Available filters:
+            Filters to process on the prune list, encoded as JSON (a `map[string][]string`).
+
+            > **Deprecated**: This query parameter is deprecated as of API version 1.53.
+            > Use the JSON request body instead.
+
+            Available filters:
 
             - `dangling=<boolean>` When set to `true` (or `1`), prune only
                unused *and* untagged images. When set to `false`
                (or `0`), all unused images are pruned.
-            - `until=<string>` Prune images created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine’s time.
+            - `until=<string>` Prune images created before this timestamp. The `<timestamp>` can be Unix timestamps, date formatted timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed relative to the daemon machine's time.
             - `label` (`label=<key>`, `label=<key>=<value>`, `label!=<key>`, or `label!=<key>=<value>`) Prune images with (or without, in case `label!=...` is used) the specified labels.
           type: "string"
+        - name: "body"
+          in: "body"
+          description: |
+            Request body for image prune operation (API version 1.53+).
+
+            For API versions prior to 1.53, use the `filters` query parameter instead.
+          schema:
+            $ref: "#/definitions/ImagePruneRequest"
       responses:
         200:
           description: "No error"

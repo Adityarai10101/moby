@@ -13,6 +13,7 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/pkg/authconfig"
+	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/compat"
@@ -621,13 +622,27 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 }
 
 func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
+	var pruneFilters filters.Args
 
-	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
-	if err != nil {
-		return err
+	version := httputils.VersionFromContext(ctx)
+
+	// API version 1.53 and later: read filters from request body
+	if versions.GreaterThanOrEqualTo(version, "1.53") {
+		var req imagetypes.PruneRequest
+		if err := httputils.ReadJSON(r, &req); err != nil {
+			return err
+		}
+		pruneFilters = filtersFromPruneRequest(req.Filters)
+	} else {
+		// API version < 1.53: read filters from query parameters (backward compatibility)
+		if err := httputils.ParseForm(r); err != nil {
+			return err
+		}
+		var err error
+		pruneFilters, err = filters.FromJSON(r.Form.Get("filters"))
+		if err != nil {
+			return err
+		}
 	}
 
 	pruneReport, err := ir.backend.ImagePrune(ctx, pruneFilters)
@@ -635,6 +650,18 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+}
+
+// filtersFromPruneRequest converts a map[string]map[string]bool from the API
+// request body into a filters.Args used by the backend.
+func filtersFromPruneRequest(f map[string]map[string]bool) filters.Args {
+	args := filters.NewArgs()
+	for key, values := range f {
+		for value := range values {
+			args.Add(key, value)
+		}
+	}
+	return args
 }
 
 // noBaseImageSpecifier is the symbol used by the FROM
