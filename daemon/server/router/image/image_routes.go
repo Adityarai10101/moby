@@ -620,6 +620,8 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, res)
 }
 
+// Temporary until PruneRequest struct in api/types/image/prune_request.go is merged
+// then we should switch to importing from github.com/moby/moby/api/types/image/prune_request.go
 type imagePruneRequest struct {
 	Filters map[string]map[string]bool `json:"Filters,omitempty"`
 }
