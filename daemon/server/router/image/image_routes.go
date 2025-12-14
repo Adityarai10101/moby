@@ -13,7 +13,6 @@ import (
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/pkg/authconfig"
-	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/builder/remotecontext"
 	"github.com/moby/moby/v2/daemon/internal/compat"
@@ -621,14 +620,15 @@ func (ir *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, res)
 }
 
+type imagePruneRequest struct {
+	Filters map[string]map[string]bool `json:"Filters,omitempty"`
+}
+
 func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var pruneFilters filters.Args
-
-	version := httputils.VersionFromContext(ctx)
-
-	// API version 1.53 and later: read filters from request body
-	if versions.GreaterThanOrEqualTo(version, "1.53") {
-		var req imagetypes.PruneRequest
+	
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.53") {
+		var req imagePruneRequest
 		if err := httputils.ReadJSON(r, &req); err != nil {
 			return err
 		}
